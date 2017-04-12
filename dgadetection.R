@@ -52,19 +52,16 @@ colnames(bad.domains)="baddomain"
 
 #convert all bad domains to lower case
 
-bad.domains$domain=tolower(bad.domains$baddomain)
+bad.domains$baddomain=tolower(bad.domains$baddomain)
 
 #we have to split the string on '.' and only keep the first part
 
 library(stringr)
 
 
-
-
 mydomains=sapply(X = bad.domains,function(x) str_split(x,"\\."))
-
-
 domains=vector()
+#get the first item in each
 for (i in 1:2669){
   domains[i]=mydomains[[i]][1]
 }
@@ -77,6 +74,7 @@ sum(is.na(bad.domains))
 #no NAs
 #currently 2669, we check if there are any duplicates
 bad.domains=unique(bad.domains)
+#there were 5 duplicates that were removed
 #balance 2664 
 # combine both alexa and bad.domains
 
@@ -107,19 +105,19 @@ myentropy=function(myword){
   return(wordentropy)
 }
 
-#myentropy("abcdefghifkl")
-#myentropy("abcabcabcabc")
-#myentropy("transworld")
-
+# myentropy("abcdefghifkl")
+# myentropy("abcabcabcabc")
+# myentropy("transworld")
+# myentropy("aquickbrownfoxjumpedoverthelazydog")
 #we use this function to calculate entropy of the all domains
 
-myentropy=sapply(alldomains$domain,myentropy)
+myentropy1=sapply(alldomains$domain,myentropy)
 
-head(myentropy)
+head(myentropy1)
 #loop to write all entropy values to alldomains
 mydomains=vector()
-for (i in 1:length(myentropy)){
-  mydomains[i]=myentropy[i][[1]]
+for (i in 1:length(myentropy1)){
+  mydomains[i]=myentropy1[i][[1]]
 }
 
 alldomains$entropy=mydomains
@@ -157,8 +155,8 @@ alldomains %>%
 ggplot(alldomains,aes(len,entropy))+geom_point(aes(color=status))+
   ggtitle("Scatter Plot of Domains by Entropy and Domain Length")
 
-
-#first let's count the numbers in the domain fd in the alldomains dataset
+#its hard to differentiate the dga domains by entropy and length alone
+#first let's count the numeric characterds in the domain name in the alldomains dataset
 
 pattern='[0-9]'
 
@@ -173,13 +171,14 @@ for (i in 1:length(digits)){
   
 }
 
-#let's put the numcount as a percentage of length of domain 
+#let's put the numeric count as a percentage of length of domain 
 alldomains$numcount=lengthvector/alldomains$len
 
 #we make a box plot of the domains by status, numcount
 
 ggplot(alldomains,aes(status,numcount,fill=status))+geom_boxplot()
 
+#its hard to make out the difference since the median is zero
 summary(alldomains$numcount)
 
 #The dga entries do have higher number of numcount compared to legit but it is hard to differentiate the two based on this count
@@ -219,8 +218,11 @@ ggplot(alldomains,aes(status,vowelpercent,fill=status))+geom_boxplot()
 ggplot(alldomains,aes(vowelpercent,entropy))+geom_point(aes(color=status))+
   ggtitle("Scatter plot showing Entropy Vs VowelPercent")
 
+#also let's see a scatter plot of vowels vs length 
 
-#let's try and find the consonent percentage in the domain names
+ggplot(alldomains,aes(vowelpercent,len))+geom_point(aes(color=status))
+
+#let's try and find the consonent percentage in the domain names, we also exclude numeric characters
 
 patterncons='[^aeiou[0-9]]'
 
@@ -243,12 +245,12 @@ ggplot(alldomains,aes(status,conspercent,fill=status))+geom_boxplot()
 
 #dga sites have much higher number of consonents as compared to legit sites
 
-#let's do a scatter plot of len vs consonent percentage 
+#let's do a scatter plot of entropy vs conspercent percentage 
 
-ggplot(alldomains,aes(len,conspercent))+geom_point(aes(color=status))+
-  ggtitle("Scatter plot of domain name length vs consonent percentage")
+ggplot(alldomains,aes(conspercent,entropy))+geom_point(aes(color=status))+
+  ggtitle("Scatter plot of domain name entropy vs consonent percentage")
 
-#finally, let's see which all domain names have consonent repeated continously 4 or more times
+#finally, let's see which all domain names have consonents repeated continously 4 or more times
 
 consonentcont='[^aeiou[0-9]]{4,}'
 alldomains$repconsonent=as.numeric(str_detect(alldomains$domain,pattern = consonentcont))
@@ -259,7 +261,7 @@ table(alldomains$repconsonent)
 
 prop.table(table(alldomains$status,alldomains$repconsonent),margin = 1)
 
-plot(prop.table(table(alldomains$status,alldomains$repconsonent),margin = 1),col=c("red","blue"))
+plot(prop.table(table(alldomains$status,alldomains$repconsonent),margin = 1),col=c("green","red"))
 
 #let's try to classify the status using these two features
 
@@ -294,6 +296,7 @@ task.over=oversample(traintask,rate = 30)
 
 table(getTaskTargets(traintask))
 table(getTaskTargets(task.over))
+prop.table(table(getTaskTargets(task.over)))
 task.over
 #with task over we get the same proportion of dga and legit
 
@@ -303,33 +306,87 @@ alllearners=listLearners(task.over)
 
 #let's benchmark performance using 5 learners
 
-benchlearners=list(makeLearner("classif.boosting",predict.type = "prob"),makeLearner("classif.C50",predict.type = "prob"),
-                   makeLearner("classif.earth",predict.type = "prob"),makeLearner("classif.ksvm",predict.type = "prob"),
-                   makeLearner("classif.randomForest",predict.type = "prob"))
-benchlearners2=makeLearner("classif.C50",predict.type = "prob")
+# benchlearners=list(makeLearner("classif.boosting",predict.type = "prob"),makeLearner("classif.C50",predict.type = "prob"),
+#                    makeLearner("classif.earth",predict.type = "prob"),makeLearner("classif.ksvm",predict.type = "prob"),
+#                    makeLearner("classif.randomForest",predict.type = "prob"))
+lrn=makeLearner("classif.C50",predict.type = "prob")
 #Define sampling
 
 benchsample=makeResampleDesc("CV",iters=3)
 listMeasures(task.over)
 measures=list(acc,auc)
 
-library(parallelMap)
-parallelStartSocket(cpus = 4)
+#library(parallelMap)
+#parallelStartSocket(cpus = 4)
 #perform the experiment
 
-benchexpt=benchmark(learners = benchlearners2,tasks = task.over,resamplings = benchsample,
-                  measures = measures)
+#train the model using the learner
 
-benchexpt2=benchmark(learners = benchlearners2,tasks = traintask,resamplings = benchsample,
-                    measures = measures)
-benchexpt2
+model_C50=train(learner = lrn,task = task.over)
 
-benchexpt3=benchmark(learners = benchlearners,tasks = task.over,resamplings = benchsample,
-                    measures = measures)
-myresampling=resample(learner = makeLearner("classif.C50",predict.type = "prob"),task = task.over,
-                      resampling = benchsample,measures = measures)
+#let's see the prediction w/o tuning parameters
 
-myresampling
-plot(myresampling)
-myresampling2=resample(learner = makeLearner("classif.earth",predict.type = "prob"),task = task.over,
-                      resampling = benchsample,measures = measures)
+#first create a task for the test domain
+
+test.task=makeClassifTask(data=testdomains,target = "status")
+test.task
+test.task.over=oversample(test.task,rate=30)
+prop.table(table(getTaskTargets(test.task)))
+prop.table(table(getTaskTargets(test.task.over)))
+names(testdomains)
+
+predict_C50=predict(model_C50,task = test.task.over)
+library(caret)
+test.task.over
+
+calculateConfusionMatrix(pred = predict_C50,relative = TRUE,sums = TRUE)
+confusionMatrix(predict_C50$data$response,predict_C50$data$truth)
+calculateROCMeasures(pred = predict_C50)
+
+#we now tune the parameters of the C_50 learner and see if we can get better performance
+
+getParamSet("classif.C50")
+
+#get the search parameter
+C50_Search=makeParamSet(
+  makeIntegerParam("trials",lower=20,upper=100),
+  makeIntegerParam("bands",lower = 5,upper=100),
+  makeLogicalParam("winnow",default = FALSE),
+  makeNumericParam("CF",lower=0,upper=1),
+  makeNumericParam("sample",lower=0.25,upper=0.75)
+)
+
+#make the search algorithm
+
+C50_algorithm=makeTuneControlRandom(maxit = 100L)
+
+C50_CV=makeResampleDesc("CV",iters=3)
+
+#tune the parameters
+
+C50_tune=tuneParams(learner = lrn,task = task.over,resampling = C50_CV,measures = measures,par.set = C50_Search,control = C50_algorithm)
+
+# #benchexpt=benchmark(learners = benchlearners,tasks = task.over,resamplings = benchsample,
+#                   measures = measures)
+
+# benchexpt2=benchmark(learners = benchlearners2,tasks = traintask,resamplings = benchsample,
+#                     measures = measures)
+# benchexpt2
+# 
+# benchexpt3=benchmark(learners = benchlearners,tasks = task.over,resamplings = benchsample,
+#                     measures = measures)
+# myresampling=resample(learner = makeLearner("classif.C50",predict.type = "prob"),task = task.over,
+#                       resampling = benchsample,measures = measures)
+# 
+# myresampling
+# plot(myresampling)
+# myresampling2=resample(learner = makeLearner("classif.cvglmnet",predict.type = "prob"),task = task.over,
+#                       resampling = benchsample,measures = measures)
+# 
+# 
+# myresampling3=resample(learner = makeLearner("classif.ksvm",predict.type = "prob"),task = task.over,
+#                        resampling = benchsample,measures = measures)
+# 
+# myresampling4=resample(learner = makeLearner("classif.C50",predict.type = "prob"),task = traintask,
+#                       resampling = benchsample,measures = measures)
+# 
