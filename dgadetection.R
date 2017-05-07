@@ -31,7 +31,7 @@ alexa$status="legit"
 
 alexa$no=NULL
 alexa$domain.name=NULL
-
+head(alexa)
 #we also need to drop na and duplicates
 
 sum(is.na(alexa$domain))
@@ -47,6 +47,10 @@ alexa=unique(alexa)
 #lets do the similar for dga_domains
 
 bad.domains=read.csv(paste0(path,"dga_domains.txt"),header = FALSE)
+
+#get some more bad domains
+
+#bad.domains2=read.csv("https://raw.githubusercontent.com/abhatia2014/DGA-1/master/all_dga.txt",header = FALSE)
 
 colnames(bad.domains)="baddomain"
 
@@ -156,7 +160,7 @@ ggplot(alldomains,aes(len,entropy))+geom_point(aes(color=status))+
   ggtitle("Scatter Plot of Domains by Entropy and Domain Length")
 
 #its hard to differentiate the dga domains by entropy and length alone
-#first let's count the numeric characterds in the domain name in the alldomains dataset
+#first let's count the numeric characters in the domain name in the alldomains dataset
 
 pattern='[0-9]'
 
@@ -180,7 +184,9 @@ ggplot(alldomains,aes(status,numcount,fill=status))+geom_boxplot()
 
 #its hard to make out the difference since the median is zero
 summary(alldomains$numcount)
-
+with(alldomains,tapply(numcount,status,summary))
+with(alldomains,tapply(entropy,status,summary))
+with(alldomains,tapply(len,status,summary))
 #The dga entries do have higher number of numcount compared to legit but it is hard to differentiate the two based on this count
 
 #we'll do a scatter plot between entropy and numcount
@@ -242,6 +248,9 @@ alldomains=alldomains %>%
 #let's box plot conspercent with status
 
 ggplot(alldomains,aes(status,conspercent,fill=status))+geom_boxplot()
+
+
+with(alldomains,tapply(conspercent,status,summary))
 
 #dga sites have much higher number of consonents as compared to legit sites
 
@@ -342,7 +351,17 @@ test.task.over
 calculateConfusionMatrix(pred = predict_C50,relative = TRUE,sums = TRUE)
 confusionMatrix(predict_C50$data$response,predict_C50$data$truth)
 calculateROCMeasures(pred = predict_C50)
+performance(pred = predict_C50,task = test.task.over,measures = list(mmce,acc,auc))
 
+#Let's try and train the model on actual and not over samples
+
+model_C50_act=mlr::train(learner = lrn,task = traintask)
+
+#predict using the model
+
+predict_C50_act=predict(model_C50,task = test.task)
+confusionMatrix(predict_C50_act$data$response,predict_C50_act$data$truth)
+performance(pred = predict_C50_act,task = test.task.over,measures = list(mmce,acc,auc))
 #we now tune the parameters of the C_50 learner and see if we can get better performance
 
 getParamSet("classif.C50")
