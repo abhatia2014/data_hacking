@@ -9,6 +9,7 @@ library(stringr)
 library(ngram)
 
 #load data files
+load("finalmodel.RData")
 #path="./dga_detection/data/"
 alexa=read.csv("https://raw.githubusercontent.com/abhatia2014/DGA-1/master/all_legit.txt",stringsAsFactors = FALSE,header = FALSE)
 #give names to the headers
@@ -624,10 +625,24 @@ predictDomain=function(mydomain){
 }
 
 
-predictDomain("greengrass")
+predictDomain("kslklwkjo")
 
 save.image("finalmodel.RData")
 
 trysample=sample(nrow(alldomains),10,replace = FALSE)
 checkdomains=alldomains[trysample,'domain']
 predictDomain(checkdomains)
+
+
+# test the model against some randomely generated domain names
+
+# generate random names
+
+#join 15 random letters together 
+?concatenate
+
+randomSample=replicate(50,concatenate(sample(letters,runif(n = 1,min = 5,max = 30),replace = TRUE),sample(c(".org",".com",".t",".bt",".edu"),1),rm.space = TRUE))
+
+predictDomain(randomSample)
+
+
